@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["ml_utils"]
+
+[project]
+name = "ml_utils"
+version = "0.1.0"
+description = "A simple collection of my code snippets I created during my learning journey"
+authors = [{name = "Aayush Kumar", email = "aayushkumarfirst@gmail.com"}]
+

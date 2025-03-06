@@ -1,0 +1,12 @@
+# Ignoring pycache and notebook checkpoints
+__pycache__/
+.ipynb_checkpoints/
+
+# Ignoring any data files
+data/
+
+# Ignoring any experimentation level jupyter notebooks created
+*.ipynb
+
+# Ignoring files generated during build
+*.egg-info/
