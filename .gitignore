@@ -10,3 +10,7 @@ data/
 
 # Ignoring files generated during build
 *.egg-info/
+
+# Ignoring config files for editors and IDEs
+.idea/
+.vscode/
