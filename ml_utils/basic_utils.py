@@ -25,3 +25,13 @@ def cross_corr_2d(X: torch.Tensor, kernel: torch.Tensor, in_channeled=False, out
         outputs.append(output_ts)
     
     return torch.stack(outputs)
+
+
+def prepare_module(module: torch.nn.Module, shape, summarize=True):
+    """Passes a dummy tensor through various layers of the module, in order to
+    initialize the no. of their input features."""
+    X = torch.randn(*shape)
+    for child in module.children():
+        X = child(X)
+        if summarize:
+            print(f"{type(X).__name__} output shape: {X.shape}")

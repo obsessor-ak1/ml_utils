@@ -1,6 +1,9 @@
+import math
 import sys
 import time
 
+import numpy as np
+import matplotlib.pyplot as plt
 import torch
 
 
@@ -96,7 +99,7 @@ class Trainer:
         for epoch in range(1, self._max_epochs+1):
             if verbose:
                 print(f"Epoch: {epoch}/{self._max_epochs}")
-                self._fit_epoch(verbose)
+            self._fit_epoch(verbose)
 
     def _estimate_val_metrics(self, val_data=None, track=True):
         """Checks loss on validation set rather than."""
@@ -126,3 +129,24 @@ class Trainer:
     def validate(self, val_data):
         """Gives validation metrics on a new data."""
         return self._estimate_val_metrics(val_data, track=False)
+
+    def plot_history(self):
+        ncols = 2
+        nrows = math.ceil(len(self._history["train"]) / ncols)
+        _, axes = plt.subplots(nrows, ncols, figsize=(15, 5 * nrows))
+        axes = np.array(axes).reshape(nrows, ncols)
+        metric_names = list(self._history["train"].keys())
+        train_metrics = list(self._history["train"].values())
+        test_metrics = list(self._history["test"].values())
+        epochs = list(range(len(train_metrics[0])))
+        current_metric = 0
+        for i in range(nrows):
+            for j in range(ncols):
+                axis = axes[i][j]
+                axis.plot(epochs, train_metrics[current_metric], label="train", linestyle="--")
+                axis.plot(epochs, test_metrics[current_metric], label="test", color="orange")
+                axis.set_title(metric_names[current_metric])
+                axis.set_xlim([0, len(epochs)])
+                axis.legend()
+                current_metric += 1
+        plt.tight_layout()

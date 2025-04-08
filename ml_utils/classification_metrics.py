@@ -26,7 +26,6 @@ class Accuracy(ClassificationMetric):
         self._batch_sizes = []
         self._batch_wise_metric = []
 
-
     def __call__(self, pred: torch.tensor, actual: torch.tensor):
         # For multiclass one-hot encoded vectors
         if pred.ndim > 1:
@@ -40,7 +39,7 @@ class Accuracy(ClassificationMetric):
             correct_matches = matches == actual
         
         total_samples = pred.shape[0]
-        correct = correct_matches.sum()
+        correct = correct_matches.sum().item()
         self._batch_sizes.extend([total_samples])
         self._batch_correct_counts.extend([correct])
         self._batch_wise_metric.extend([correct * 100 / total_samples])
