@@ -34,4 +34,4 @@ def prepare_module(module: torch.nn.Module, shape, summarize=True):
     for child in module.children():
         X = child(X)
         if summarize:
-            print(f"{type(X).__name__} output shape: {X.shape}")
+            print(f"{type(child).__name__} output shape: {X.shape}")

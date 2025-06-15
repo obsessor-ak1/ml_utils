@@ -10,11 +10,13 @@ import torch
 class Trainer:
     """A trainer responsible for training PyTorch models and recording
     scores and other training stats."""
-    def __init__(self, max_epochs=10, device="cpu", cleanup=False, track_metrics=[]):
+    def __init__(self, max_epochs=10, device="cpu", cleanup=False, track_metrics=[], clip_type=None, clip_threshold=1.0):
         self._max_epochs = max_epochs
         self._device = torch.device(device)
         self._cleanup = cleanup
         self._metrics = track_metrics
+        self.clip_type = clip_type
+        self.clip_threshold = clip_threshold
         self._history = {
             "train": {"loss": []},
             "test": {"loss": []}
@@ -58,6 +60,7 @@ class Trainer:
         start = time.time()
         total_batches = len(self._train_data)
         metric_estimators = [Metrics() for Metrics in self._metrics]
+        self._model.train()
         total_loss = 0
         for batch, (X, y) in enumerate(self._train_data):
             X, y = X.to(self._device), y.to(self._device)
@@ -66,6 +69,13 @@ class Trainer:
             
             total_loss += loss.item()
             loss.backward()
+            
+            # Applying gradient clipping
+            if self.clip_type == "norm":
+                torch.nn.utils.clip_grad_norm_(self._model.parameters(), max_norm=self.clip_threshold)
+            elif self.clip_type == "value":
+                torch.nn.utils.clip_grad_value_(self._model.parameters(), clip_value=self.clip_threshold)
+            
             self._optimizer.step()
             self._optimizer.zero_grad()
             end = time.time()
@@ -107,6 +117,7 @@ class Trainer:
         total_loss = 0
         num_batches = len(val_data)
         metric_estimators = [Metrics() for Metrics in self._metrics]
+        self._model.eval()
         for (X, y) in val_data:
             with torch.no_grad():
                 X, y = X.to(self._device), y.to(self._device)
@@ -131,7 +142,7 @@ class Trainer:
         return self._estimate_val_metrics(val_data, track=False)
 
     def plot_history(self):
-        ncols = 2
+        ncols = 2 if len(self._metrics) > 0 else 1
         nrows = math.ceil(len(self._history["train"]) / ncols)
         _, axes = plt.subplots(nrows, ncols, figsize=(15, 5 * nrows))
         axes = np.array(axes).reshape(nrows, ncols)
