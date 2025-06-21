@@ -10,6 +10,7 @@ import torch
 class Trainer:
     """A trainer responsible for training PyTorch models and recording
     scores and other training stats."""
+
     def __init__(self, max_epochs=10, device="cpu", cleanup=False, track_metrics=[], clip_type=None, clip_threshold=1.0):
         self._max_epochs = max_epochs
         self._device = torch.device(device)
@@ -24,8 +25,8 @@ class Trainer:
         for metric in track_metrics:
             self._history["train"][metric.name] = []
             self._history["test"][metric.name] = []
-            
-    def prepare(self, model,  optimizer, loss_fn, train_data, val_data=None):
+
+    def prepare(self, model,  optimizer, loss_fn, train_data, val_data=None, reduce_two_dims=False):
         """Prepares the trainer by keeping, model """
         self._train_data = train_data
         self._val_data = val_data
@@ -33,7 +34,8 @@ class Trainer:
         self._optimizer = optimizer
         self._loss_fn = loss_fn
         self._model = self._model.to(self._device)
-    
+        self.reduce_dims = reduce_two_dims  # Required for RNNs
+
     def _display_progress(self, batch, total_batches, duration):
         """Shows the progress bar on the terminal."""
         percent = batch * 100 / total_batches
@@ -64,22 +66,30 @@ class Trainer:
         total_loss = 0
         for batch, (X, y) in enumerate(self._train_data):
             X, y = X.to(self._device), y.to(self._device)
-            pred_output = self._model(X).squeeze()            
+            pred_output = self._model(X).squeeze()
+            original_shape = pred_output.shape
+            if self.reduce_dims:
+                pred_output = pred_output.reshape(-1, original_shape[-1])
+                y = y.reshape(-1)
             loss = self._loss_fn(pred_output, y)
-            
+
             total_loss += loss.item()
             loss.backward()
-            
+
             # Applying gradient clipping
             if self.clip_type == "norm":
-                torch.nn.utils.clip_grad_norm_(self._model.parameters(), max_norm=self.clip_threshold)
+                torch.nn.utils.clip_grad_norm_(
+                    self._model.parameters(), max_norm=self.clip_threshold)
             elif self.clip_type == "value":
-                torch.nn.utils.clip_grad_value_(self._model.parameters(), clip_value=self.clip_threshold)
-            
+                torch.nn.utils.clip_grad_value_(
+                    self._model.parameters(), clip_value=self.clip_threshold)
+
             self._optimizer.step()
             self._optimizer.zero_grad()
             end = time.time()
             # Accumulating metrics
+            pred_output = pred_output.reshape(original_shape)
+            y = y.reshape(original_shape[:-1])
             for estimator in metric_estimators:
                 with torch.no_grad():
                     estimator(pred_output, y)
@@ -88,7 +98,7 @@ class Trainer:
             if self._device != torch.device("cpu") and self._cleanup:
                 del X, y
                 torch.cuda.empty_cache()
-            
+
         # Recording history
         train_loss = total_loss / total_batches
         self._history["train"]["loss"].extend([train_loss])
@@ -122,11 +132,18 @@ class Trainer:
             with torch.no_grad():
                 X, y = X.to(self._device), y.to(self._device)
                 pred_output = self._model(X).squeeze()
-                loss_val = self._loss_fn(pred_output, y, reduction="sum").item()
+                original_shape = pred_output.shape
+                if self.reduce_dims:
+                    pred_output = pred_output.reshape(-1, original_shape[-1])
+                    y = y.reshape(-1)
+                loss_val = self._loss_fn(
+                    pred_output, y, reduction="sum").item()
                 total_loss += loss_val
+                pred_output = pred_output.reshape(original_shape)
+                y = y.reshape(original_shape[:-1])
                 for estimator in metric_estimators:
                     estimator(pred_output, y)
-        
+
         avg_loss = total_loss / num_batches
         # Getting the final metrics
         metrics = {"loss": avg_loss}
@@ -154,8 +171,10 @@ class Trainer:
         for i in range(nrows):
             for j in range(ncols):
                 axis = axes[i][j]
-                axis.plot(epochs, train_metrics[current_metric], label="train", linestyle="--")
-                axis.plot(epochs, test_metrics[current_metric], label="test", color="orange")
+                axis.plot(
+                    epochs, train_metrics[current_metric], label="train", linestyle="--")
+                axis.plot(
+                    epochs, test_metrics[current_metric], label="test", color="orange")
                 axis.set_title(metric_names[current_metric])
                 axis.set_xlim([0, len(epochs)])
                 axis.legend()
