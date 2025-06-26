@@ -4,7 +4,8 @@ import re
 import shutil
 
 import kagglehub
-
+import torch
+from torch.utils.data import Dataset
 
 class TimeMachineData:
     """Manages Time Machine text data."""
