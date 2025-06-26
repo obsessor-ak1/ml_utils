@@ -66,3 +66,36 @@ class Vocab:
     @property
     def unk(self):
         return self.token_to_idx["<unk>"]
+
+
+class TimeMachineDataset(Dataset):
+    """The dataset object encapsulating Time Machine Data"""
+    def __init__(self, n_subsequence, time_steps, train=True):
+        data = TimeMachineData("../data", force_download=False)
+        self.n_subsequence = n_subsequence
+        self.time_steps = time_steps
+        text_data = data.alpha_only
+        char_80_percent = len(text_data) * 8 // 10
+        if train:
+            self._text = text_data[:char_80_percent]
+        else:
+            self._text = text_data[char_80_percent:]
+        self._raw_tokens = list(self._text)
+        self._vocab = Vocab(self._raw_tokens)
+        self.vocab_size = len(self._vocab)
+        self._enc_tokens = self._vocab[self._raw_tokens]
+        self.n_elements = len(self._raw_tokens) // n_subsequence
+        assert self.n_elements > time_steps
+        subsequences = [
+            torch.tensor(self._enc_tokens[i*self.n_elements:(i+1)*self.n_elements])
+            for i in range(n_subsequence)
+        ]
+        self._subsequences = torch.stack(subsequences)
+
+    def __len__(self):
+        return self.n_elements - self.time_steps
+
+    def __getitem__(self, idx):
+        X = self._subsequences[:, idx:idx+self.time_steps]
+        y = self._subsequences[:, idx+1:idx+self.time_steps+1]
+        return X, y
