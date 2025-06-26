@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import torch
+import torch.nn.functional as F
 
 
 class ClassificationMetric(ABC):
@@ -12,7 +13,7 @@ class ClassificationMetric(ABC):
         pass
 
     @abstractmethod
-    def result(self, validation=False):
+    def result(self):
         pass
 
 
@@ -26,7 +27,7 @@ class Accuracy(ClassificationMetric):
         self._batch_sizes = []
         self._batch_wise_metric = []
 
-    def __call__(self, pred: torch.tensor, actual: torch.tensor):
+    def __call__(self, pred: torch.Tensor, actual: torch.Tensor):
         # For multiclass one-hot encoded vectors
         if pred.ndim > 1:
             predicted_labels = pred.argmax(axis=1)
@@ -44,8 +45,22 @@ class Accuracy(ClassificationMetric):
         self._batch_correct_counts.extend([correct])
         self._batch_wise_metric.extend([correct * 100 / total_samples])
 
-    def result(self, batched=False):
-        if batched:
-            return sum(self._batch_correct_counts) * 100 / sum(self._batch_sizes)
-        else:
-            return sum(self._batch_wise_metric) / len(self._batch_wise_metric)
+    def result(self):
+        return sum(self._batch_correct_counts) * 100 / sum(self._batch_sizes)
+
+
+class Perplexity(ClassificationMetric):
+    """Defines perplexity metric language modelling."""
+    name = "perplexity"
+
+    def __init__(self):
+        self._entropies = []
+        self._batch_sizes = []
+
+    def __call__(self, pred: torch.Tensor, actual: torch.Tensor):
+        ent_val = F.cross_entropy(pred, actual, reduction="sum")
+        self._entropies.append(ent_val)
+        self._batch_sizes.append(len(len(pred)))
+    
+    def result(self):
+        return torch.exp(sum(self.entropies) / sum(self._batch_sizes))

@@ -88,8 +88,9 @@ class Trainer:
             self._optimizer.zero_grad()
             end = time.time()
             # Accumulating metrics
-            pred_output = pred_output.reshape(original_shape)
-            y = y.reshape(original_shape[:-1])
+            # To restore original shape: uncoment this
+            # pred_output = pred_output.reshape(original_shape)
+            # y = y.reshape(original_shape[:-1])
             for estimator in metric_estimators:
                 with torch.no_grad():
                     estimator(pred_output, y)
@@ -105,7 +106,7 @@ class Trainer:
         # Recording metrics
         for estimator in metric_estimators:
             self._history["train"][estimator.name].extend(
-                [estimator.result(batched=True)])
+                [estimator.result()])
         if self._val_data is not None:
             self._estimate_val_metrics(self._val_data)
         if verbose:
@@ -139,8 +140,9 @@ class Trainer:
                 loss_val = self._loss_fn(
                     pred_output, y, reduction="sum").item()
                 total_loss += loss_val
-                pred_output = pred_output.reshape(original_shape)
-                y = y.reshape(original_shape[:-1])
+                # To restore original shape: uncoment this
+                # pred_output = pred_output.reshape(original_shape)
+                # y = y.reshape(original_shape[:-1])
                 for estimator in metric_estimators:
                     estimator(pred_output, y)
 
