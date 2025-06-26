@@ -60,7 +60,7 @@ class Perplexity(ClassificationMetric):
     def __call__(self, pred: torch.Tensor, actual: torch.Tensor):
         ent_val = F.cross_entropy(pred, actual, reduction="sum")
         self._entropies.append(ent_val)
-        self._batch_sizes.append(len(len(pred)))
+        self._batch_sizes.append(len(pred))
     
     def result(self):
         return torch.exp(sum(self.entropies) / sum(self._batch_sizes))
