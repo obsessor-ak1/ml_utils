@@ -126,7 +126,7 @@ class Trainer:
         """Checks loss on validation set rather than."""
 
         total_loss = 0
-        num_batches = len(val_data)
+        num_samples = 0
         metric_estimators = [Metrics() for Metrics in self._metrics]
         self._model.eval()
         for (X, y) in val_data:
@@ -140,13 +140,14 @@ class Trainer:
                 loss_val = self._loss_fn(
                     pred_output, y, reduction="sum").item()
                 total_loss += loss_val
+                num_samples += len(X)
                 # To restore original shape: uncoment this
                 # pred_output = pred_output.reshape(original_shape)
                 # y = y.reshape(original_shape[:-1])
                 for estimator in metric_estimators:
                     estimator(pred_output, y)
 
-        avg_loss = total_loss / num_batches
+        avg_loss = total_loss / num_samples
         # Getting the final metrics
         metrics = {"loss": avg_loss}
         for estimator in metric_estimators:
