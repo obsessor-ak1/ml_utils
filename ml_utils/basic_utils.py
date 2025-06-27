@@ -35,19 +35,3 @@ def prepare_module(module: torch.nn.Module, shape, summarize=True):
         X = child(X)
         if summarize:
             print(f"{type(child).__name__} output shape: {X.shape}")
-
-
-def predict_text(model, prefix, num_preds, vocab, device=None):
-    state, outputs = None, [vocab[prefix[0]]]
-    for i in range(len(prefix) + num_preds -1):
-        X = torch.tensor([[outputs[-1]]], device=device)
-        embs = model.one_hot(X)
-        rnn_outputs, state = model.rnn(embs, state)
-        if i < len(prefix)-1:
-            outputs.append(vocab[prefix[i+1]])
-        else:
-            Y = model.output_layer(rnn_outputs)
-            outputs.append(
-                int(Y.argmax(axis=2).reshape(1))
-            )
-    return ''.join([vocab.idx_to_token[i] for i in outputs])

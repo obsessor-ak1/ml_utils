@@ -63,4 +63,4 @@ class Perplexity(ClassificationMetric):
         self._batch_sizes.append(len(pred))
     
     def result(self):
-        return torch.exp(sum(self._entropies) / sum(self._batch_sizes)).cpu().numpy()
+        return torch.exp(sum(self._entropies) / sum(self._batch_sizes)).item()
