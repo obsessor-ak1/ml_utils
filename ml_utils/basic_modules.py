@@ -2,6 +2,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from ml_utils.basic_utils import masked_softmax
+
 
 class LanguageModel(nn.Module):
     """A normal class which represents a language model."""
@@ -48,3 +50,23 @@ class LanguageModel(nn.Module):
         suffix = ''.join(vocab.to_tokens(outputs))
         return prefix+suffix
 
+
+class AdditiveAttention(nn.Module):
+    """Additive attention implementation."""
+    def __init__(self, num_hidden, dropout):
+        super().__init__()
+        self.W_q = nn.LazyLinear(num_hidden, bias=False)
+        self.W_k = nn.LazyLinear(num_hidden, bias=False)
+        self.w_v = nn.LazyLinear(1, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, queries, keys, values, valid_lens):
+        queries, keys = self.W_q(queries), self.W_k(keys)
+        features = queries.unsqueeze(2) + keys.unsqueeze(1)
+        features = torch.tanh(features)
+        # print(f"Queries shape: {queries.shape}, Keys shape: {keys.shape}")
+        # print(f"Features shape: {features.shape}")
+        scores = self.w_v(features).squeeze(-1)
+        # print(f"Scores shape: {scores.shape}")
+        self.attention_weights = masked_softmax(scores, valid_lens)
+        return torch.bmm(self.dropout(self.attention_weights), values)
