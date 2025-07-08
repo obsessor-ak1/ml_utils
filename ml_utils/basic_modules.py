@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -68,5 +70,20 @@ class AdditiveAttention(nn.Module):
         # print(f"Features shape: {features.shape}")
         scores = self.w_v(features).squeeze(-1)
         # print(f"Scores shape: {scores.shape}")
+        self.attention_weights = masked_softmax(scores, valid_lens)
+        return torch.bmm(self.dropout(self.attention_weights), values)
+
+
+class DotProductAttention(nn.Module):
+    """A simple dot product attention (scaled) implementation."""
+    def __init__(self, dropout=0.2):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, queries, keys, values, valid_lens=None):
+        d = queries.size(-1)
+        # Swapping the last two dimenstions of the keys, to support dot product
+        # using matrix multiplication
+        scores = torch.bmm(queries, keys.transpose(1, 2)) / math.sqrt(d)
         self.attention_weights = masked_softmax(scores, valid_lens)
         return torch.bmm(self.dropout(self.attention_weights), values)
