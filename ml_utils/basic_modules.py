@@ -87,3 +87,58 @@ class DotProductAttention(nn.Module):
         scores = torch.bmm(queries, keys.transpose(1, 2)) / math.sqrt(d)
         self.attention_weights = masked_softmax(scores, valid_lens)
         return torch.bmm(self.dropout(self.attention_weights), values)
+
+
+class MultiHeadAttention(nn.Module):
+    """Multi-head implementation."""
+    def __init__(self, num_hidden, num_heads, dropout, bias=False, **kwargs):
+        super().__init__()
+        self.num_heads = num_heads
+        self.attention = DotProductAttention(dropout)
+        self.W_q = nn.LazyLinear(num_hidden, bias=bias)
+        self.W_k = nn.LazyLinear(num_hidden, bias=bias)
+        self.W_v = nn.LazyLinear(num_hidden, bias=bias)
+        self.W_o = nn.LazyLinear(num_hidden, bias=bias)
+
+    def forward(self, queries, keys, values, valid_lens):
+        queries = self.transpose_qkv(self.W_q(queries))
+        keys = self.transpose_qkv(self.W_k(keys))
+        values = self.transpose_qkv(self.W_v(values))
+        if valid_lens is not None:
+            valid_lens = valid_lens.repeat_interleave(
+                repeats=self.num_heads, dim=0)
+        output = self.attention(queries, keys, values, valid_lens)
+        output_concat = self.transpose_output(output)
+        return self.W_o(output_concat)
+
+    def transpose_qkv(self, X):
+        """Transposition for parallel computation of multiple attention heads."""
+        X = X.reshape(X.shape[0], X.shape[1], self.num_heads, -1)
+        X = X.permute(0, 2, 1, 3)
+        return X.reshape(-1, X.shape[2], X.shape[3])
+
+    def transpose_output(self, X):
+        """Reverse the operation of transpose_qkv."""
+        X = X.reshape(-1, self.num_heads, X.shape[1], X.shape[2])
+        X = X.permute(0, 2, 1, 3)
+        return X.reshape(X.shape[0], X.shape[1], -1)
+
+    @property
+    def attention_weights(self):
+        return self.attention.attention_weights
+
+
+class PositionalEncoding(nn.Module):
+    """Positional encoding."""
+    def __init__(self, num_hidden, dropout, max_len=1000):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.P = torch.zeros((1, max_len, num_hidden))
+        X = torch.arange(max_len, dtype=torch.float32).reshape(
+            -1, 1) / torch.pow(10000, torch.arange(0, num_hidden, 2, dtype=torch.float32) / num_hidden)
+        self.P[:, :, 0::2] = torch.sin(X)
+        self.P[:, :, 1::2] = torch.cos(X)
+
+    def forward(self, X):
+        X = X + self.P[:, :X.shape[1], :].to(X.device)
+        return self.dropout(X)
