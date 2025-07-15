@@ -80,3 +80,20 @@ def get_masked_entropy_loss(target_padding):
             return total_loss / mask.sum()
         return total_loss
     return masked_entropy_loss
+
+
+def bleu(pred_seq, label_seq, k):
+    """Compute the BLEU."""
+    pred_seq = list(set(pred_seq)-set(["<bos>", "<eos>", "<pad>"]))
+    len_label, len_pred = len(label_seq), len(pred_seq)
+    score = math.exp(min(0, 1- len_label / len_pred))
+    for n in range(1, min(k, len_pred+1)):
+        num_matches, label_subs = 0, cls.defaultdict(int)
+        for i in range(len_label-n-1):
+            label_subs[''.join(label_seq[i:i+n])] += 1
+        for i in range(len_pred-n+1):
+            if label_subs[''.join(pred_seq[i:i+n])] > 0:
+                num_matches += 1
+                label_subs[''.join(pred_seq[i:i+n])] -= 1
+        score *= math.pow(num_matches / (len_pred - n + 1), math.pow(0.5, n))
+        return score
