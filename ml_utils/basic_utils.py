@@ -1,6 +1,8 @@
 import collections as cls
 import math
+import random
 
+import matplotlib.pyplot as plt
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -100,3 +102,18 @@ def bleu(pred_seq, label_seq, k):
                 label_subs[''.join(pred_seq[i:i+n])] -= 1
         score *= math.pow(num_matches / (len_pred - n + 1), math.pow(0.5, n))
         return score
+
+
+def show_dataset_images(dataset, nrows=4, ncols=4):
+    ds_count = len(dataset)
+    image_ids = random.sample(range(ds_count), k=nrows*ncols)
+    image_ids = torch.tensor(image_ids).reshape(nrows, ncols)
+    fig, axes = plt.subplots(4, 4, figsize=(12, 12))
+
+    for i in range(nrows):
+        for j in range(ncols):
+            image, label = dataset[image_ids[i][j]]
+            class_title = dataset.classes[label.item()]
+            axes[i][j].imshow(image.permute(1, 2, 0).numpy())
+            axes[i][j].axis("off")
+            axes[i][j].set_title(class_title)
